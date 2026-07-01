@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, send_file
 from fpdf import FPDF
-import mysql.connector
 from dotenv import load_dotenv
 import google.generativeai as genai
 import os
@@ -17,16 +16,7 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 model = genai.GenerativeModel("gemini-2.5-flash")
 
-# ---------------- DATABASE ----------------
-
-db = mysql.connector.connect(
-    host="localhost",
-    user="root",
-    password="Vijju@123",
-    database="resume_builder"
-)
-
-cursor = db.cursor()
+# ---------------- GLOBAL STORAGE ----------------
 
 resume_data = {}
 
@@ -44,9 +34,12 @@ def resume():
 
     global resume_data
 
+    # -------- FORM DATA --------
+
     name = request.form["name"]
     email = request.form["email"]
     phone = request.form["phone"]
+
     education = request.form["education"]
     projects = request.form["projects"]
     experience = request.form["experience"]
@@ -63,11 +56,20 @@ def resume():
     summary_prompt = f"""
 Write a professional resume summary.
 
-Name : {name}
-Education : {education}
-Projects : {projects}
-Experience : {experience}
-Skills : {skills}
+Name:
+{name}
+
+Education:
+{education}
+
+Projects:
+{projects}
+
+Experience:
+{experience}
+
+Skills:
+{skills}
 
 Keep it within 4 lines.
 """
@@ -100,35 +102,6 @@ Suggestions
 """
 
     ats_report = model.generate_content(ats_prompt).text
-
-    # ---------------- SAVE TO MYSQL ----------------
-
-    cursor.execute("""
-    INSERT INTO resumes
-    (
-        name,
-        email,
-        phone,
-        education,
-        projects,
-        experience,
-        certifications,
-        skills
-    )
-    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
-    """,
-    (
-        name,
-        email,
-        phone,
-        education,
-        projects,
-        experience,
-        certifications,
-        skills
-    ))
-    db.commit()
-
     # ---------------- STORE DATA ----------------
 
     resume_data = {
@@ -169,7 +142,7 @@ def download():
 
     pdf.add_page()
 
-    pdf.set_font("Arial","B",18)
+    pdf.set_font("Arial", "B", 18)
 
     pdf.cell(
         200,
@@ -181,105 +154,69 @@ def download():
 
     pdf.ln(10)
 
-    pdf.set_font("Arial","",12)
+    pdf.set_font("Arial", "", 12)
 
-    pdf.cell(200,10,f"Name : {resume_data['name']}",ln=True)
-
-    pdf.cell(200,10,f"Email : {resume_data['email']}",ln=True)
-
-    pdf.cell(200,10,f"Phone : {resume_data['phone']}",ln=True)
-
-    pdf.cell(200,10,f"LinkedIn : {resume_data['linkedin']}",ln=True)
-
-    pdf.cell(200,10,f"GitHub : {resume_data['github']}",ln=True)
-
-    pdf.cell(200,10,f"Portfolio : {resume_data['portfolio']}",ln=True)
+    pdf.cell(200, 10, f"Name : {resume_data['name']}", ln=True)
+    pdf.cell(200, 10, f"Email : {resume_data['email']}", ln=True)
+    pdf.cell(200, 10, f"Phone : {resume_data['phone']}", ln=True)
+    pdf.cell(200, 10, f"LinkedIn : {resume_data['linkedin']}", ln=True)
+    pdf.cell(200, 10, f"GitHub : {resume_data['github']}", ln=True)
+    pdf.cell(200, 10, f"Portfolio : {resume_data['portfolio']}", ln=True)
 
     pdf.ln(5)
 
-    pdf.set_font("Arial","B",14)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(200, 10, "Professional Summary", ln=True)
 
-    pdf.cell(200,10,"Professional Summary",ln=True)
-
-    pdf.set_font("Arial","",12)
-
-    pdf.multi_cell(
-        0,
-        8,
-        resume_data["ai_summary"]
-    )
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, resume_data["ai_summary"])
 
     pdf.ln(5)
 
-    pdf.set_font("Arial","B",14)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(200, 10, "Education", ln=True)
 
-    pdf.cell(200,10,"Education",ln=True)
-
-    pdf.set_font("Arial","",12)
-
-    pdf.multi_cell(
-        0,
-        8,
-        resume_data["education"]
-    )
-    pdf.ln(5)
-    pdf.set_font("Arial","B",14)
-    pdf.cell(200,10,"Projects",ln=True)
-
-    pdf.set_font("Arial","",12)
-    pdf.multi_cell(
-        0,
-        8,
-        resume_data["projects"]
-    )
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, resume_data["education"])
 
     pdf.ln(5)
 
-    pdf.set_font("Arial","B",14)
-    pdf.cell(200,10,"Experience",ln=True)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(200, 10, "Projects", ln=True)
 
-    pdf.set_font("Arial","",12)
-    pdf.multi_cell(
-        0,
-        8,
-        resume_data["experience"]
-    )
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, resume_data["projects"])
 
     pdf.ln(5)
 
-    pdf.set_font("Arial","B",14)
-    pdf.cell(200,10,"Certifications",ln=True)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(200, 10, "Experience", ln=True)
 
-    pdf.set_font("Arial","",12)
-    pdf.multi_cell(
-        0,
-        8,
-        resume_data["certifications"]
-    )
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, resume_data["experience"])
+    pdf.ln(5)
+
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(200, 10, "Certifications", ln=True)
+
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, resume_data["certifications"])
 
     pdf.ln(5)
 
-    pdf.set_font("Arial","B",14)
-    pdf.cell(200,10,"Technical Skills",ln=True)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(200, 10, "Technical Skills", ln=True)
 
-    pdf.set_font("Arial","",12)
-    pdf.multi_cell(
-        0,
-        8,
-        resume_data["skills"]
-    )
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, resume_data["skills"])
 
     pdf.ln(5)
 
-    pdf.set_font("Arial","B",14)
-    pdf.cell(200,10,"ATS Report",ln=True)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(200, 10, "ATS Report", ln=True)
 
-    pdf.set_font("Arial","",12)
-    pdf.multi_cell(
-        0,
-        8,
-        resume_data["ats_report"]
-    )
+    pdf.set_font("Arial", "", 12)
+    pdf.multi_cell(0, 8, resume_data["ats_report"])
 
     pdf.output("resume.pdf")
 
@@ -291,8 +228,10 @@ def download():
 
 # ---------------- MAIN ----------------
 
-import os
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=True
+    )      
